@@ -1,0 +1,17 @@
+{
+  "name": "postit",
+  "short_name": "postit",
+  "description": "Invite-only curated content board",
+  "start_url": "/inbound",
+  "display": "standalone",
+  "background_color": "#1e1b4b",
+  "theme_color": "#312e81",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,125 @@
+{
+  "$schema": "./taxonomy.schema.json",
+  "version": 1,
+  "description": "Fixed 2-level taxonomy for postit content classification. The LLM is constrained to pick 1-3 leaf slugs from this list; it CANNOT invent new categories. To add a category: edit this file, bump version, run `npm run taxonomy:seed`, and optionally run a reclassify job for items with low-confidence old assignments.",
+  "categories": [
+    {
+      "slug": "tech",
+      "name": "Tech",
+      "description": "Software, hardware, and the craft of building technology.",
+      "children": [
+        { "slug": "tech/ai-ml", "name": "AI & ML", "description": "Machine learning, LLMs, neural networks, model papers, applied ML." },
+        { "slug": "tech/systems", "name": "Systems", "description": "Distributed systems, databases, operating systems, performance." },
+        { "slug": "tech/web", "name": "Web & Mobile", "description": "Frontend, browsers, mobile apps, web standards, UX engineering." },
+        { "slug": "tech/security", "name": "Security", "description": "Cybersecurity, cryptography, privacy, exploits, OPSEC." },
+        { "slug": "tech/hardware", "name": "Hardware", "description": "Chips, embedded, robotics, physical computing, devices." }
+      ]
+    },
+    {
+      "slug": "business",
+      "name": "Business",
+      "description": "How organizations, markets, and careers work.",
+      "children": [
+        { "slug": "business/startups", "name": "Startups", "description": "Founding, fundraising, product-market fit, company stories." },
+        { "slug": "business/finance", "name": "Finance & Investing", "description": "Markets, investing, personal finance, macro." },
+        { "slug": "business/economics", "name": "Economics", "description": "Economic theory, policy analysis, labor, trade." },
+        { "slug": "business/marketing", "name": "Marketing & Growth", "description": "Marketing strategy, growth, branding, GTM." },
+        { "slug": "business/careers", "name": "Careers & Work", "description": "Career advice, remote work, management, workplace culture." }
+      ]
+    },
+    {
+      "slug": "science",
+      "name": "Science",
+      "description": "The natural world and the methods we use to understand it.",
+      "children": [
+        { "slug": "science/physics", "name": "Physics", "description": "Physics at any scale — classical, quantum, statistical." },
+        { "slug": "science/biology", "name": "Biology & Medicine", "description": "Biology, genetics, neuroscience, medical research." },
+        { "slug": "science/earth", "name": "Earth & Climate", "description": "Geology, climate, ecology, oceanography." },
+        { "slug": "science/math", "name": "Math", "description": "Pure and applied mathematics, statistics, proofs." },
+        { "slug": "science/space", "name": "Space & Astronomy", "description": "Astronomy, cosmology, space exploration." }
+      ]
+    },
+    {
+      "slug": "health",
+      "name": "Health",
+      "description": "Body and mind.",
+      "children": [
+        { "slug": "health/fitness", "name": "Fitness & Movement", "description": "Training, strength, mobility, endurance, sports science." },
+        { "slug": "health/nutrition", "name": "Nutrition", "description": "Diet, macros, supplements, food science." },
+        { "slug": "health/sleep", "name": "Sleep & Recovery", "description": "Sleep, circadian, recovery, chronobiology." },
+        { "slug": "health/mental", "name": "Mental Health", "description": "Psychology, therapy, mindfulness, stress management." },
+        { "slug": "health/longevity", "name": "Longevity & Medicine", "description": "Longevity research, clinical medicine, healthspan." }
+      ]
+    },
+    {
+      "slug": "culture",
+      "name": "Culture",
+      "description": "Art, entertainment, and the things we consume for meaning.",
+      "children": [
+        { "slug": "culture/film", "name": "Film & TV", "description": "Movies, television, documentaries, film criticism." },
+        { "slug": "culture/music", "name": "Music", "description": "Music, music production, music history." },
+        { "slug": "culture/books", "name": "Books & Writing", "description": "Books, literary criticism, long-form nonfiction." },
+        { "slug": "culture/visual-art", "name": "Visual Art", "description": "Painting, sculpture, photography as fine art, design history." },
+        { "slug": "culture/games", "name": "Games", "description": "Video games, board games, tabletop RPGs, game design." }
+      ]
+    },
+    {
+      "slug": "society",
+      "name": "Society",
+      "description": "How people live together at scale.",
+      "children": [
+        { "slug": "society/politics", "name": "Politics", "description": "Politics, elections, governance." },
+        { "slug": "society/history", "name": "History", "description": "History, historiography, archaeology." },
+        { "slug": "society/education", "name": "Education", "description": "Learning, schools, universities, pedagogy." },
+        { "slug": "society/cities", "name": "Cities & Urbanism", "description": "Urban planning, transit, architecture, built environment." },
+        { "slug": "society/policy", "name": "Policy & Law", "description": "Public policy, law, regulation, civic infrastructure." }
+      ]
+    },
+    {
+      "slug": "craft",
+      "name": "Craft",
+      "description": "Hands-on making and creative disciplines.",
+      "children": [
+        { "slug": "craft/design", "name": "Design", "description": "Graphic, product, industrial, UX design." },
+        { "slug": "craft/writing", "name": "Writing", "description": "Writing craft — essays, fiction, technical writing." },
+        { "slug": "craft/photography", "name": "Photography", "description": "Photography technique, photo essays, gear." },
+        { "slug": "craft/cooking", "name": "Cooking & Food", "description": "Recipes, cooking technique, food culture." },
+        { "slug": "craft/making", "name": "Making & DIY", "description": "Maker projects, woodworking, electronics, home improvement." }
+      ]
+    },
+    {
+      "slug": "philosophy",
+      "name": "Philosophy",
+      "description": "Thinking about thinking.",
+      "children": [
+        { "slug": "philosophy/ethics", "name": "Ethics", "description": "Moral philosophy, ethics, values." },
+        { "slug": "philosophy/mind", "name": "Mind & Consciousness", "description": "Philosophy of mind, cognitive science, consciousness." },
+        { "slug": "philosophy/religion", "name": "Religion & Spirituality", "description": "Religion, spirituality, meditation traditions." },
+        { "slug": "philosophy/logic", "name": "Logic & Reasoning", "description": "Formal logic, epistemology, rationality." },
+        { "slug": "philosophy/aesthetics", "name": "Aesthetics", "description": "Beauty, taste, aesthetic theory." }
+      ]
+    },
+    {
+      "slug": "meta",
+      "name": "Meta & Tools",
+      "description": "Resources about being productive, learning, and finding things.",
+      "children": [
+        { "slug": "meta/tools", "name": "Tools & Software", "description": "Apps, CLIs, workflows, productivity software." },
+        { "slug": "meta/productivity", "name": "Productivity", "description": "Time management, focus, systems for getting things done." },
+        { "slug": "meta/learning", "name": "Learning & Tutorials", "description": "How-to guides, courses, tutorials, skill-building." },
+        { "slug": "meta/newsletters", "name": "Newsletters & Feeds", "description": "Newsletters, blogs, feeds worth subscribing to." },
+        { "slug": "meta/reference", "name": "Reference", "description": "Wikis, docs, canonical references, cheat sheets." }
+      ]
+    },
+    {
+      "slug": "humor",
+      "name": "Humor",
+      "description": "Comedy, satire, and joy.",
+      "children": [
+        { "slug": "humor/comedy", "name": "Comedy", "description": "Stand-up, sketches, comedy podcasts." },
+        { "slug": "humor/satire", "name": "Satire", "description": "Satire, parody, op-ed humor." },
+        { "slug": "humor/memes", "name": "Memes & Absurdity", "description": "Memes, absurdist humor, internet culture jokes." }
+      ]
+    }
+  ]
+}

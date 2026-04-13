@@ -1,0 +1,32 @@
+# Local Postgres with pgvector (required for hybrid semantic search).
+# Container name postgres_postit avoids collision with sharedboard's postgres_db.
+#
+# First-time setup:
+#   npm run db:up
+#   npm run db:setup        # creates DB + loads schema.sql
+#   npm run taxonomy:seed   # populates categories from taxonomy/taxonomy.json
+#
+# Reset:
+#   npm run db:down && docker volume rm postit_pgdata
+#   npm run db:up && npm run db:setup && npm run taxonomy:seed
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: postgres_postit
+    ports:
+      - "5433:5432"   # 5433 host-side so we don't clash with sharedboard on 5432
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: postit
+    volumes:
+      - postit_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postit"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postit_pgdata:

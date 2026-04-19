@@ -62,8 +62,15 @@ export async function GET(req: NextRequest) {
   const categorySlug = searchParams.get("category");
   const kind = searchParams.get("kind");
   const before = searchParams.get("before");
-  const limitRaw = Number(searchParams.get("limit"));
-  const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(100, limitRaw)) : 40;
+  // Default to 40. `Number(null)` is 0 (finite), so parse the raw string
+  // first and only accept positive numbers — a missing `?limit=` must fall
+  // through to the default, not collapse to LIMIT 1.
+  const limitRaw = searchParams.get("limit");
+  const parsedLimit = limitRaw != null ? Number(limitRaw) : NaN;
+  const limit =
+    Number.isFinite(parsedLimit) && parsedLimit > 0
+      ? Math.min(100, Math.floor(parsedLimit))
+      : 40;
 
   try {
     const items = await feedItems({

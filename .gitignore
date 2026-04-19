@@ -43,3 +43,6 @@ next-env.d.ts
 
 # docker volumes are persistent; don't commit runtime state
 docker-volumes/
+
+# editor / agent artifacts
+.codex

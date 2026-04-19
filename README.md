@@ -20,10 +20,15 @@ npm run db:setup          # creates DB and loads schema.sql
 # 3. Environment
 cp .env.local.example .env.local
 # edit .env.local:
-#   - OPENAI_API_KEY = sk-...
+#   - OPENAI_API_KEY = sk-...  (required for categorization + embeddings)
 #   - NEXTAUTH_SECRET = $(openssl rand -base64 32)
+#   - AUTH_SECRET     = <same value as NEXTAUTH_SECRET>  (Auth.js v5 reads this first)
 #   - NEXT_PUBLIC_DEV_AUTH=true
-#   - optionally BOOTSTRAP_ADMIN_EMAIL=you@example.com (auto-grants is_admin on first dev login)
+#   - BOOTSTRAP_ADMIN_EMAIL=you@example.com
+#     (first dev-mode signup using this email skips the invite-token gate AND gets is_admin)
+#   - NEXTAUTH_URL must match the port `npm run dev` actually uses — if :3000
+#     is taken on your host, Next falls back to :3001 and you must set
+#     NEXTAUTH_URL=http://localhost:3001 or NextAuth callbacks drift.
 
 # 4. Seed the fixed taxonomy into `categories`
 npm run taxonomy:seed
@@ -80,14 +85,28 @@ bash scripts/aws-provision.sh
 
 ## Project status
 
-**Scaffolding complete** (this commit). Next phases per plan:
+The old phase checklist below this point had drifted behind the codebase. `postit`
+is no longer at pure scaffolding.
 
-- [ ] Phase 2: Port auth, db, og, embedding libs from sharedboard
-- [ ] Phase 3: Invite-token gate
-- [ ] Phase 4: Canonical ID + URL normalization + dedup
-- [ ] Phase 5: POST /api/items + categorization worker
-- [ ] Phase 6: Feed UI + Liquid Glass
-- [ ] Phase 7: Consumed tracking + badges
-- [ ] Phase 8: Hybrid search
-- [ ] Phase 9: Admin console
-- [ ] Phase 10: Polish + deploy
+Current implementation already includes:
+
+- NextAuth wiring for dev credentials and Cognito-backed production auth
+- invite-token issuance and redemption routes
+- canonical URL extraction / normalization helpers and merge-attribute dedup
+- `POST /api/items` plus in-process background categorization kickoff
+- feed/search/report/taxonomy API routes
+- feed, search, archive, mine, and admin app surfaces
+- OpenAI embedding helpers and hybrid search over ready items
+
+The current planning baseline is now the live queue plus the repo status note:
+
+- `docs/CURRENT_STATUS.md` — **read this first** when resuming work. It tracks
+  the live Priority Forge queue, local-dev gotchas hit during setup, and the
+  concrete next steps.
+
+High-priority work is no longer “port the basics.” It is:
+
+- ~~reconcile docs and task notes with the actual implementation state~~ (done;
+  see `docs/CURRENT_STATUS.md`)
+- audit and finish the item ingestion path end to end (active)
+- then continue polishing the feed/admin/product surface from that corrected baseline

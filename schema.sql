@@ -1,6 +1,6 @@
 -- Postit Database Schema for local Postgres (pgvector/pgvector:pg16) and Amazon RDS.
 -- Postit is a single-global-space content board with merge-attribute dedup and a
--- fixed LLM taxonomy. See plan: ~/.claude/plans/stateless-seeking-flurry.md.
+-- fixed LLM taxonomy. Plan-of-record: docs/CURRENT_STATUS.md (and README.md).
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";   -- fuzzy / similarity search

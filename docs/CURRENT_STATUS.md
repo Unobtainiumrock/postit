@@ -25,26 +25,26 @@ Code, Codex, Cursor, Droid), paste this prompt to it as your first message:
 > 1. Read `docs/CURRENT_STATUS.md` end to end. Treat it as the plan of record. The README's older phase checklist has been replaced — do not reconstruct intent from it.
 > 2. Skim `README.md` for product context (what postit *is*).
 > 3. Follow the section "Priority Forge install + task reconstruction (for a new machine)" near the bottom of `docs/CURRENT_STATUS.md` to install Priority Forge, wire it to me, and restart me so the MCP tools load.
-> 4. Run the one-shot seed script: `bash scripts/seed-postit-tasks.sh`. It creates the three postit-tagged tasks this doc references and then **self-deletes**. Commit the deletion: `git add scripts/seed-postit-tasks.sh && git commit -m 'Remove one-shot seed script after first-time setup'`.
-> 5. Confirm the seed worked: `curl -s http://127.0.0.1:3456/tasks` and count tasks with `"project":"postit"` (expect three: one P1 in_progress umbrella, one P1 in_progress ingestion audit, one P2 environment-only). Forge v4 has no `/priorities` HTTP route.
+> 4. **Priority Forge tasks:** the one-shot `scripts/seed-postit-tasks.sh` exists only in **git history** after first-time setup. Restore with `git log --oneline -- scripts/seed-postit-tasks.sh`, then `git checkout <commit> -- scripts/seed-postit-tasks.sh`, run `bash scripts/seed-postit-tasks.sh`, and commit the deletion again — or create equivalent `postit` tasks with `POST http://127.0.0.1:3456/tasks` / MCP.
+> 5. Confirm: `curl -s http://127.0.0.1:3456/tasks` lists your `postit`-tagged work (UUIDs are machine-local; Forge v4 has no `/priorities` route).
 > 6. Read `~/Desktop/github/priority-forge/AGENT_RULES.md` once. That is the task tracking protocol you should follow during the work (mark `in_progress` before starting, ask for reasoning when deprioritizing/deferring, etc.).
-> 7. The active spine of work is the P1 in_progress task "Audit and finish postit item ingestion path across auth, dedup, API routes, and background enrichment". Drive it to done per the "Practical interpretation of the queue" and "Current planned path" sections in `docs/CURRENT_STATUS.md` before opening new feature work.
+> 7. **Spine of work** is the umbrella v1 task plus follow-ups you create in Forge (admin polish, deploy, verification). Ingestion-path audit is **complete in code** — smoke-test in your DB, then mark any recreated “ingestion audit” Forge task complete before opening unrelated feature work.
 >
 > If `npm run dev` falls back to port 3001, set `NEXTAUTH_URL=http://localhost:3001` in `.env.local`. See "Local-dev gotchas already hit" for the rest of the booby traps that have already been mapped.
 
 ## Active queue items (Priority Forge, `postit` project)
 
-Task **UUIDs are local** to each machine — after `scripts/seed-postit-tasks.sh`
-they appear in `GET http://127.0.0.1:3456/tasks` with `project: "postit"`. The
-intended queue shape is:
+Task **UUIDs are local** to each machine — they appear in
+`GET http://127.0.0.1:3456/tasks` with `project: "postit"`. After the default
+seed + one completion pass, the **shape** of the queue is usually:
 
 1. **P1, in_progress** — umbrella: `Build postit v1 — fork sharedboard, link-only
    PWA with merge-attribute dedup, fixed taxonomy, asymmetric feed`
-2. **P1, in_progress** — `Audit and finish postit item ingestion path across auth,
-   dedup, API routes, and background enrichment` (drive to **complete** in Forge
-   once you have verified behavior in your environment)
-3. **P2, not_started** — `Verify Codex sandbox/userns fix after AppArmor sysctl
+2. **P2, not_started** — `Verify Codex sandbox/userns fix after AppArmor sysctl
    override` (environment-only; does not block product work)
+
+The **ingestion audit** task is **complete** in code; if you re-seed from git
+history you may recreate it — mark **complete** in Forge after your smoke tests.
 
 Already closed in the forge (do **not** treat as active anymore, even though an
 earlier version of this note listed it):
@@ -162,15 +162,16 @@ Still worth tracking:
   existing-user re-entry (manual / staging verification)
 - `schema.sql` idempotency (see gotcha above) — consider `IF NOT EXISTS` or
   migration split
-- README vs scripts parity and UI polish (admin, PWA deploy) as separate tasks
+- ~~README vs scripts parity~~ (parity pass landed 2026-04-19: `scripts/backfill-embeddings.ts`,
+  `scripts/seed-demo-items.ts`, `scripts/aws-provision.sh` + README alignment)
+- UI polish (admin, PWA deploy) as separate Forge tasks
 
 ## Practical interpretation of the queue
 
 - Umbrella (P1): keep the broader v1 vision in view; next product tranche is
   admin polish, PWA + deploy, and runtime verification — not greenfield ingest.
-- Ingest audit (P1): **code side addressed in-repo (2026-04-19).** Mark the
-  matching Forge task **complete** after you smoke-test `POST /api/items` and
-  feeds in your dev DB.
+- Ingest audit: **complete** in code; Forge task marked complete after the audit
+  session — recreate from seed history only if you need a checklist placeholder.
 - Codex userns (P2): environment-only, unblock later.
 
 ## Current planned path
@@ -202,15 +203,14 @@ Next concrete steps when resuming:
    bootstrap admin.
 2. Set `OPENAI_API_KEY` in `.env.local` before exercising any flow that hits
    categorization or embeddings (`POST /api/items`, search).
-3. Pick up forge task `4e74595f…` and drive the ingestion audit.
+3. Drive the **umbrella** v1 task and new Forge tasks for deploy/admin polish
+   (ingestion audit is already complete in code).
 
 ## Priority Forge install + task reconstruction (for a new machine)
 
-This document references Priority Forge tasks by UUID. Those UUIDs are local to
-the machine that originally created them; on a fresh machine you will get your
-own. Use this section to (1) install Priority Forge and (2) reconstitute the
-postit task queue with your own IDs so the `4e74595f…` / `79627545…` /
-`1de27ddc…` references above resolve to *your* equivalents.
+This document references Priority Forge tasks conceptually; **UUIDs are local**
+to each machine. Use this section to (1) install Priority Forge and (2)
+reconstitute the `postit` task queue on a new machine.
 
 ### 1. Install Priority Forge
 
@@ -231,7 +231,11 @@ curl http://127.0.0.1:3456/health    # → {"status":"ok",...}
 
 ### 2. Wire your AI tool to Priority Forge
 
-`npm run setup:mcp` is interactive. Pick the option for your tool:
+`npm run setup:mcp` is interactive. Pick the option for your tool. **Note:** some
+Priority Forge releases ship a `configure-mcp.ts` ordering bug (`CURSOR_MCP_JSON`
+TDZ); if `npm run setup:mcp` crashes, configure `~/.cursor/mcp.json` manually with
+`{"mcpServers":{"priority-forge":{"url":"http://127.0.0.1:3456/mcp"}}}` and copy
+`AGENT_RULES_CURSOR.md` into `~/.cursor/rules/priority-forge.mdc` (see the forge repo).
 
 ```
 [1] Cursor             — HTTP, ~/.cursor/mcp.json
@@ -255,7 +259,8 @@ update, GET to list). The `npm run setup:mcp` step is optional for that path.
 
 ### 3. Recreate the postit task queue
 
-Run the one-shot seed script:
+Run the one-shot seed script (restore from git history if your clone no longer
+has the file — `git log --oneline -- scripts/seed-postit-tasks.sh`):
 
 ```bash
 bash scripts/seed-postit-tasks.sh
@@ -264,13 +269,13 @@ bash scripts/seed-postit-tasks.sh
 It does three things, in order:
 
 1. Refuses to run if Priority Forge isn't reachable on `http://127.0.0.1:3456` (so you can't seed against a stale or missing backend).
-2. Creates the three postit-tagged tasks this document references (umbrella, ingestion audit, Codex userns).
+2. Creates three postit-tagged tasks (umbrella, ingestion audit, Codex userns).
 3. Deletes itself. The script is single-use — once it runs, commit the deletion:
    ```bash
    git add scripts/seed-postit-tasks.sh
    git commit -m "Remove one-shot seed script after first-time setup"
    ```
-   If you ever need to re-seed, restore from git history (`git checkout HEAD~ -- scripts/seed-postit-tasks.sh`).
+   If you ever need to re-seed, restore from git history (`git checkout <commit> -- scripts/seed-postit-tasks.sh`).
 
 Notes inside the seed script have been lightly edited from the original
 queue to drop a stale plan-file reference (`~/.claude/plans/stateless-seeking-flurry.md`
@@ -280,7 +285,7 @@ was overwritten with unrelated content and is not recoverable). This
 After seeding:
 
 - `curl -s http://127.0.0.1:3456/tasks` (or the dashboard at `:5173`) should
-  include three `postit`-project tasks.
+  include three `postit`-project tasks until you complete or delete some.
 - Your AI agent's first action on a new conversation will be
   `get_top_priority`, which will surface the active P1 in_progress task and
   let you resume cleanly from this document.
@@ -292,7 +297,7 @@ Trust this instead:
 - the repo already has the major structural surfaces for auth, invites, items,
   feeds, search, reports, taxonomy, and admin
 - the immediate task is not broad greenfield building
-- the immediate task is to reconcile docs (done here) and verify the ingestion
-  path end to end so the next phase description is anchored in reality
+- the ingestion path is implemented and documented; next work is deploy/admin
+  polish and environment-specific verification
 - runtime gotchas above (port 3001, `AUTH_SECRET`, bootstrap email, schema
   idempotency) are now documented; do not waste a session rediscovering them

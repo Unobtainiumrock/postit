@@ -2,7 +2,7 @@
 
 Invite-only PWA for a small group to share content (YouTube, Spotify, Apple Podcasts, articles). An LLM auto-classifies every post using a fixed taxonomy; a vector index powers semantic search. The feed is asymmetric — you mostly see what *others* brought in, to avoid clutter. No chat.
 
-This project forks the reusable stack from `../sharedboard` (Next.js 16 + NextAuth v5 + Postgres/pgvector + OpenAI + next-pwa). See `~/.claude/plans/stateless-seeking-flurry.md` for the full design.
+This project forks the reusable stack from `../sharedboard` (Next.js 16 + NextAuth v5 + Postgres/pgvector + OpenAI + next-pwa). **Design and status:** `docs/CURRENT_STATUS.md` (canonical for resuming work); this README is product + setup context.
 
 ---
 
@@ -35,18 +35,20 @@ npm run taxonomy:seed
 
 # 5. Run
 npm run dev
-# open http://localhost:3000, sign in with any email (dev mode)
+# Open the URL printed in the terminal (often :3000, or :3001 if 3000 is taken).
+# First sign-in on a fresh DB: use BOOTSTRAP_ADMIN_EMAIL with an empty invite
+# token to create the admin user, or use any email with a valid invite token.
 ```
 
-In dev mode (`NEXT_PUBLIC_DEV_AUTH=true`) the login page accepts any email; a user row is upserted. Invite tokens are still required unless the email matches `BOOTSTRAP_ADMIN_EMAIL` — the bootstrap admin can then issue invites from the admin console.
+In dev mode (`NEXT_PUBLIC_DEV_AUTH=true`) the login flow can upsert a user row from the email you submit. **Invite tokens are still required on first signup** unless the email matches `BOOTSTRAP_ADMIN_EMAIL` (case-insensitive) — that bootstrap user can then issue invites from the admin console.
 
 ## Production (AWS Amplify)
 
 ```bash
-# Provision Cognito, RDS, S3, IAM (adapted from sharedboard; fills .env.production.local)
+# Prints an AWS / Amplify env checklist (full unattended provisioner not bundled yet).
 bash scripts/aws-provision.sh
 
-# Then connect this repo to Amplify with the same env vars.
+# Then connect this repo to Amplify and set the same env vars from your console / secrets.
 ```
 
 ## Architecture (summary)
@@ -80,8 +82,9 @@ bash scripts/aws-provision.sh
 | `npm run db:reset` | Drop DB and rebuild |
 | `npm run taxonomy:seed` | Seed `categories` from `taxonomy/taxonomy.json` |
 | `npm run items:backfill-embeddings` | Recompute embeddings for items missing them |
-| `npm run demo:seed` | Seed a handful of demo items for local dev |
+| `npm run demo:seed` | Seed a handful of demo items via `postItem` (needs ≥1 user row) |
 | `npm run lint` | ESLint |
+| `bash scripts/aws-provision.sh` | Print AWS / Amplify provisioning checklist |
 
 ## Project status
 
@@ -108,5 +111,7 @@ High-priority work is no longer “port the basics.” It is:
 
 - ~~reconcile docs and task notes with the actual implementation state~~ (done;
   see `docs/CURRENT_STATUS.md`)
-- audit and finish the item ingestion path end to end (active)
-- then continue polishing the feed/admin/product surface from that corrected baseline
+- ~~audit and finish the item ingestion path end to end~~ (done in code; smoke-test
+  in your DB, then treat the matching Priority Forge task as complete)
+- continue admin polish, PWA + Amplify deploy, and staging auth verification (see
+  `docs/CURRENT_STATUS.md` → *Current planned path*)

@@ -3,8 +3,9 @@ import { JWTSessionError } from "@auth/core/errors";
 import Cognito from "next-auth/providers/cognito";
 import Credentials from "next-auth/providers/credentials";
 import { cookies } from "next/headers";
+import type { PoolClient } from "pg";
 import pool from "./db";
-import { validateInvite, redeemInvite, INVITE_COOKIE } from "./invites/token";
+import { INVITE_COOKIE } from "./invites/token";
 
 /**
  * Postit auth:
@@ -29,7 +30,10 @@ class InviteInvalidError extends CredentialsSignin {
   code = "invite_invalid";
 }
 
-async function pickAvailableHandle(email: string): Promise<string> {
+async function pickAvailableHandle(
+  db: Pick<PoolClient, "query">,
+  email: string
+): Promise<string> {
   const base =
     email
       .split("@")[0]
@@ -38,7 +42,7 @@ async function pickAvailableHandle(email: string): Promise<string> {
       .slice(0, 32) || "user";
   for (let attempt = 0; attempt < 10; attempt++) {
     const candidate = attempt === 0 ? base : `${base}${attempt + 1}`;
-    const { rows } = await pool.query<{ id: string }>(
+    const { rows } = await db.query<{ id: string }>(
       "SELECT id FROM users WHERE handle = $1",
       [candidate]
     );
@@ -59,56 +63,117 @@ async function ensureUser(
   params: EnsureUserParams
 ): Promise<{ id: string; isAdmin: boolean; handle: string }> {
   const { email, displayName, cognitoSub, avatarUrl, inviteToken } = params;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
 
-  // Existing user? Match on either email or cognito_sub (lets a dev-mode user
-  // graduate to Cognito cleanly by re-using the same email).
-  const { rows: existing } = await pool.query<{
-    id: string;
-    is_admin: boolean;
-    handle: string;
-  }>(
-    `SELECT id, is_admin, handle FROM users WHERE email = $1 OR cognito_sub = $2 LIMIT 1`,
-    [email, cognitoSub]
-  );
-  if (existing[0]) {
-    await pool.query(
-      `UPDATE users SET cognito_sub = $2,
-                        display_name = $3,
-                        avatar_url = COALESCE($4, avatar_url)
-       WHERE id = $1`,
-      [existing[0].id, cognitoSub, displayName, avatarUrl ?? null]
+    // Existing user? Match on either email or cognito_sub (lets a dev-mode user
+    // graduate to Cognito cleanly by re-using the same email).
+    const { rows: existing } = await client.query<{
+      id: string;
+      is_admin: boolean;
+      handle: string;
+    }>(
+      `SELECT id, is_admin, handle
+       FROM users
+       WHERE email = $1 OR cognito_sub = $2
+       LIMIT 1`,
+      [email, cognitoSub]
     );
-    return {
-      id: existing[0].id,
-      isAdmin: existing[0].is_admin,
-      handle: existing[0].handle,
-    };
+    if (existing[0]) {
+      await client.query(
+        `UPDATE users SET cognito_sub = $2,
+                          display_name = $3,
+                          avatar_url = COALESCE($4, avatar_url)
+         WHERE id = $1`,
+        [existing[0].id, cognitoSub, displayName, avatarUrl ?? null]
+      );
+      await client.query("COMMIT");
+      return {
+        id: existing[0].id,
+        isAdmin: existing[0].is_admin,
+        handle: existing[0].handle,
+      };
+    }
+
+    // New user path ───────────────────────────────────────────────────────────
+    const bootstrap = (process.env.BOOTSTRAP_ADMIN_EMAIL || "").trim().toLowerCase();
+    const isBootstrap = !!bootstrap && bootstrap === email.toLowerCase();
+
+    if (!isBootstrap) {
+      if (!inviteToken) throw new InviteRequiredError();
+
+      // Atomically validate and consume the invite inside the same transaction
+      // as user creation so an insert failure does not burn a use.
+      const { rowCount } = await client.query(
+        `UPDATE invites
+         SET used_count = used_count + 1
+         WHERE token = $1
+           AND revoked_at IS NULL
+           AND (expires_at IS NULL OR expires_at > NOW())
+           AND used_count < max_uses
+           AND (email IS NULL OR lower(email) = lower($2))`,
+        [inviteToken, email]
+      );
+      if ((rowCount ?? 0) === 0) throw new InviteInvalidError();
+    }
+
+    for (let attempt = 0; attempt < 12; attempt++) {
+      const handle = await pickAvailableHandle(client, email);
+      try {
+        const { rows } = await client.query<{
+          id: string;
+          is_admin: boolean;
+          handle: string;
+        }>(
+          `INSERT INTO users (cognito_sub, email, display_name, handle, avatar_url, is_admin)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           RETURNING id, is_admin, handle`,
+          [cognitoSub, email, displayName, handle, avatarUrl ?? null, isBootstrap]
+        );
+        await client.query("COMMIT");
+        return {
+          id: rows[0].id,
+          isAdmin: rows[0].is_admin,
+          handle: rows[0].handle,
+        };
+      } catch (error) {
+        const pgError = error as { code?: string; constraint?: string };
+        if (pgError.code !== "23505") throw error;
+
+        // Another request may have created the user concurrently, or we may have
+        // raced on a generated handle. Re-check for the user before retrying.
+        const { rows: winner } = await client.query<{
+          id: string;
+          is_admin: boolean;
+          handle: string;
+        }>(
+          `SELECT id, is_admin, handle
+           FROM users
+           WHERE email = $1 OR cognito_sub = $2
+           LIMIT 1`,
+          [email, cognitoSub]
+        );
+        if (winner[0]) {
+          await client.query("COMMIT");
+          return {
+            id: winner[0].id,
+            isAdmin: winner[0].is_admin,
+            handle: winner[0].handle,
+          };
+        }
+        if (pgError.constraint === "users_handle_key") continue;
+        throw error;
+      }
+    }
+
+    throw new Error("Unable to allocate a unique handle for new user");
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
   }
-
-  // New user path ─────────────────────────────────────────────────────────────
-  const bootstrap = (process.env.BOOTSTRAP_ADMIN_EMAIL || "").trim().toLowerCase();
-  const isBootstrap = !!bootstrap && bootstrap === email.toLowerCase();
-
-  if (!isBootstrap) {
-    if (!inviteToken) throw new InviteRequiredError();
-    const validation = await validateInvite(inviteToken, email);
-    if (!validation.ok || !validation.inviteId) throw new InviteInvalidError();
-    const claimed = await redeemInvite(validation.inviteId);
-    if (!claimed) throw new InviteInvalidError();
-  }
-
-  const handle = await pickAvailableHandle(email);
-  const { rows } = await pool.query<{
-    id: string;
-    is_admin: boolean;
-    handle: string;
-  }>(
-    `INSERT INTO users (cognito_sub, email, display_name, handle, avatar_url, is_admin)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     RETURNING id, is_admin, handle`,
-    [cognitoSub, email, displayName, handle, avatarUrl ?? null, isBootstrap]
-  );
-  return { id: rows[0].id, isAdmin: rows[0].is_admin, handle: rows[0].handle };
 }
 
 // ─── Providers ──────────────────────────────────────────────────────────────
@@ -236,10 +301,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
     async session({ session, token }) {
       if (session.user) {
-        if (token.appUserId) session.user.id = token.appUserId;
+        if (typeof token.appUserId === "string") session.user.id = token.appUserId;
         if (typeof token.isAdmin === "boolean")
           session.user.isAdmin = token.isAdmin;
-        if (token.handle) session.user.handle = token.handle;
+        if (typeof token.handle === "string") session.user.handle = token.handle;
       }
       return session;
     },

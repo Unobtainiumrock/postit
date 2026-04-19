@@ -24,7 +24,7 @@ cp .env.local.example .env.local
 #   - NEXTAUTH_SECRET = $(openssl rand -base64 32)
 #   - AUTH_SECRET     = <same value as NEXTAUTH_SECRET>  (Auth.js v5 reads this first)
 #   - NEXT_PUBLIC_DEV_AUTH=true
-#   - BOOTSTRAP_ADMIN_EMAIL=you@example.com
+#   - BOOTSTRAP_ADMIN_EMAIL=you@example.com[,other@example.com …]  (comma-separated bootstrap admins in dev)
 #     (first dev-mode signup using this email skips the invite-token gate AND gets is_admin)
 #   - NEXTAUTH_URL must match the port `npm run dev` actually uses — if :3000
 #     is taken on your host, Next falls back to :3001 and you must set
@@ -40,7 +40,7 @@ npm run dev
 # token to create the admin user, or use any email with a valid invite token.
 ```
 
-In dev mode (`NEXT_PUBLIC_DEV_AUTH=true`) the login flow can upsert a user row from the email you submit. **Invite tokens are still required on first signup** unless the email matches `BOOTSTRAP_ADMIN_EMAIL` (case-insensitive) — that bootstrap user can then issue invites from the admin console.
+In dev mode (`NEXT_PUBLIC_DEV_AUTH=true`) the login flow can upsert a user row from the email you submit. **Invite tokens are still required on first signup** unless the email matches one of the addresses in `BOOTSTRAP_ADMIN_EMAIL` (comma/space/semicolon separated, case-insensitive) — those bootstrap users get `is_admin` and can issue invites from `/admin`.
 
 ## Production (AWS Amplify)
 

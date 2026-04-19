@@ -66,7 +66,7 @@ Confirmed implemented surfaces in the codebase:
   - `src/lib/auth.ts`
   - dev credentials flow
   - Cognito provider wiring
-  - invite-token gated first signup, with `BOOTSTRAP_ADMIN_EMAIL` bypass
+  - invite-token gated first signup, with `BOOTSTRAP_ADMIN_EMAIL` bypass (supports multiple addresses, comma-separated)
   - **quiet logger** for `JWTSessionError` so stale-cookie events don't spam
     the Next.js dev overlay
   - explicit `secret` bound to `AUTH_SECRET ?? NEXTAUTH_SECRET`

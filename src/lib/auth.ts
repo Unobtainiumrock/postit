@@ -10,7 +10,8 @@ import { INVITE_COOKIE } from "./invites/token";
 /**
  * Postit auth:
  *   - Dev: Credentials provider (email-only). Invite token required for first signup,
- *          unless the email matches BOOTSTRAP_ADMIN_EMAIL (which auto-grants is_admin).
+ *          unless the email matches BOOTSTRAP_ADMIN_EMAIL (comma/space/semicolon
+ *          separated list; each auto-grants is_admin on first dev signup).
  *   - Prod: Cognito OAuth. Invite token is read from a cookie set by the
  *          /invite/[token] redemption page before the OAuth redirect.
  *
@@ -97,8 +98,14 @@ async function ensureUser(
     }
 
     // New user path ───────────────────────────────────────────────────────────
-    const bootstrap = (process.env.BOOTSTRAP_ADMIN_EMAIL || "").trim().toLowerCase();
-    const isBootstrap = !!bootstrap && bootstrap === email.toLowerCase();
+    const bootstrapRaw = (process.env.BOOTSTRAP_ADMIN_EMAIL || "").trim().toLowerCase();
+    const bootstrapEmails = new Set(
+      bootstrapRaw
+        .split(/[\s,;]+/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+    );
+    const isBootstrap = bootstrapEmails.has(email.toLowerCase());
 
     if (!isBootstrap) {
       if (!inviteToken) throw new InviteRequiredError();

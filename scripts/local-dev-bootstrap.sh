@@ -41,4 +41,4 @@ npm run taxonomy:seed
 echo ""
 echo "OK. Next: npm run dev"
 echo "Then open the URL shown in the terminal (often http://localhost:3000)."
-echo "Sign in with BOOTSTRAP_ADMIN_EMAIL from .env.local (invite token blank)."
+echo "Sign in with an address listed in BOOTSTRAP_ADMIN_EMAIL in .env.local (invite token blank)."

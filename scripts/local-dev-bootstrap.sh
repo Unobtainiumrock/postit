@@ -8,6 +8,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+# Docker Desktop ships the CLI here before /usr/local/bin/docker exists on fresh installs.
+export PATH="/usr/local/bin:/opt/homebrew/bin:/Applications/Docker.app/Contents/Resources/bin:$PATH"
+
 if ! command -v docker >/dev/null 2>&1; then
   echo "ERROR: docker not found. Install Docker Desktop, start it, ensure \`docker\` is on your PATH, then re-run:" >&2
   echo "  bash scripts/local-dev-bootstrap.sh" >&2

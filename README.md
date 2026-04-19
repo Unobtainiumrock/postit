@@ -80,6 +80,7 @@ bash scripts/aws-provision.sh
 | `npm run db:up` / `db:down` | Start/stop local Postgres container |
 | `npm run db:setup` | Create DB + load `schema.sql` |
 | `npm run db:reset` | Drop DB and rebuild |
+| `npm run bootstrap:local` | **One command:** `db:up` + wait + `db:setup` + `taxonomy:seed` (needs Docker) |
 | `npm run taxonomy:seed` | Seed `categories` from `taxonomy/taxonomy.json` |
 | `npm run items:backfill-embeddings` | Recompute embeddings for items missing them |
 | `npm run demo:seed` | Seed a handful of demo items via `postItem` (needs ≥1 user row) |

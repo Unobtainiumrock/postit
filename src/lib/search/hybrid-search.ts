@@ -49,6 +49,23 @@ function feedStatusWhere(mode: FeedMode): string {
   return `i.status = 'ready'`;
 }
 
+/**
+ * Search can surface `pending` / `failed` rows (when they have a non-empty
+ * `search_document`, e.g. canonical URL from the insert trigger) so local dev
+ * without OpenAI still finds recent shares. Feeds keep using `feedStatusWhere`
+ * so inbound stays `ready`-only.
+ */
+function searchStatusWhere(mode: FeedMode): string {
+  if (mode === "mine") return feedStatusWhere("mine");
+  if (mode === "all") {
+    return `(i.status = 'ready' OR (
+      i.status IN ('pending', 'failed')
+      AND length(trim(COALESCE(i.search_document, ''))) > 0
+    ))`;
+  }
+  return `i.status = 'ready'`;
+}
+
 /** SQL fragment. Always references $1 as the viewer's user_id. */
 function modeClause(mode: FeedMode): string {
   switch (mode) {
@@ -146,7 +163,7 @@ export async function searchItemsHybrid(params: SearchItemsParams): Promise<unkn
   }
 
   const commonWhere = `
-    ${feedStatusWhere(mode)} AND i.merged_into IS NULL
+    ${searchStatusWhere(mode)} AND i.merged_into IS NULL
     ${modeClause(mode)}
     ${extraFilters.join("\n")}
   `;

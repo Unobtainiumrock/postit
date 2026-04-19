@@ -1,4 +1,4 @@
-import { Children } from "react";
+import { Children, isValidElement } from "react";
 
 /**
  * CSS-columns masonry — zero JS, zero resize observers. Items flow into columns
@@ -12,9 +12,15 @@ export default function MasonryGrid({
 }) {
   return (
     <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-4">
-      {Children.map(children, (child) => (
-        <div className="break-inside-avoid mb-4">{child}</div>
-      ))}
+      {Children.map(children, (child, i) => {
+        const key =
+          isValidElement(child) && child.key != null ? String(child.key) : `masonry-${i}`;
+        return (
+          <div key={key} className="break-inside-avoid mb-4">
+            {child}
+          </div>
+        );
+      })}
     </div>
   );
 }

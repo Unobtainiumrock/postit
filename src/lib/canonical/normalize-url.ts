@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import type { ItemKind } from "@/lib/canonical/extract";
 
 /**
  * URL normalization for dedup:
@@ -66,4 +67,33 @@ export function normalizeUrl(raw: string): string {
 /** SHA-256 of the normalized URL, returned as a Node Buffer suitable for BYTEA in pg. */
 export function urlHash(normalized: string): Buffer {
   return createHash("sha256").update(normalized).digest();
+}
+
+/**
+ * Map `spotify:track:id` (etc.) to the canonical open.spotify.com HTTPS URL so
+ * `normalizeUrl` + OG fetch behave the same whether the user pasted a URI or a link.
+ */
+export function spotifyUriToOpenUrl(canonicalId: string): string | null {
+  const m = canonicalId.match(/^spotify:(episode|track|show|album|playlist):([A-Za-z0-9]+)$/i);
+  if (!m) return null;
+  return `https://open.spotify.com/${m[1].toLowerCase()}/${m[2]}`;
+}
+
+/**
+ * Stable `canonical_url` for DB storage + URL-hash layer: Spotify native URIs and
+ * bare YouTube IDs resolve to the same normalized HTTPS form as open web links.
+ */
+export function stableIngestCanonicalUrl(
+  raw: string,
+  kind: ItemKind,
+  canonicalId: string | null
+): string {
+  if (kind === "spotify" && canonicalId) {
+    const open = spotifyUriToOpenUrl(canonicalId);
+    if (open) return normalizeUrl(open);
+  }
+  if (kind === "youtube" && canonicalId) {
+    return normalizeUrl(`https://www.youtube.com/watch?v=${canonicalId}`);
+  }
+  return normalizeUrl(raw);
 }

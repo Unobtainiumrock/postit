@@ -23,7 +23,18 @@ function safeUrl(raw: string): URL | null {
 }
 
 export function extractCanonical(input: string): CanonicalExtractResult {
-  const u = safeUrl(input);
+  const trimmed = input.trim();
+
+  // Native Spotify app URIs (no https host) — same dedup key as open.spotify.com links.
+  const spotifyNative = trimmed.match(/^spotify:(episode|track|show|album|playlist):([A-Za-z0-9]+)$/i);
+  if (spotifyNative) {
+    return {
+      kind: "spotify",
+      canonicalId: `spotify:${spotifyNative[1].toLowerCase()}:${spotifyNative[2]}`,
+    };
+  }
+
+  const u = safeUrl(trimmed);
   if (!u) return { kind: "url", canonicalId: null };
 
   const host = u.hostname.toLowerCase().replace(/^www\./, "");
@@ -59,7 +70,7 @@ export function extractCanonical(input: string): CanonicalExtractResult {
   // ── Apple Podcasts ─────────────────────────────────────────────────────────
   // Forms: podcasts.apple.com/<locale>/podcast/<slug>/id<showId>?i=<episodeId>
   // Episode form (with ?i=) is strongly preferred as the dedup key; show-only uses "show:<id>".
-  if (host === "podcasts.apple.com") {
+  if (host === "podcasts.apple.com" || host === "music.apple.com") {
     const episodeId = u.searchParams.get("i");
     if (episodeId && /^\d+$/.test(episodeId)) {
       return { kind: "apple_podcast", canonicalId: episodeId };

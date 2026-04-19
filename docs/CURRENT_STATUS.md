@@ -7,11 +7,13 @@ It is intentionally driven by the active `postit` queue items plus the live
 local-dev findings, not by the older phase checklist that used to live in
 `README.md`.
 
-> **Last verification pass: 2026-04-13.** `npx tsc --noEmit` is clean against
-> the current tree. The `src/lib/auth.ts` refactor — removing the unused
-> `validateInvite` / `redeemInvite` imports and threading a
-> `Pick<PoolClient, "query">` into `pickAvailableHandle` — resolved the prior
-> TS2322 errors and is shipped as of the commit that adds this doc.
+> **Last verification pass: 2026-04-19.** `./node_modules/.bin/tsc --noEmit` is
+> clean. Ingestion-path audit closed in-repo: native Spotify URIs + stable
+> `canonical_url` for Spotify/YouTube, `music.apple.com` episode parsing,
+> **mine** feed includes the poster’s `pending` / `failed` rows, and missing
+> `OPENAI_API_KEY` no longer flips new items to `failed` (stays `pending` for
+> retry). Priority Forge v4 lists tasks at `GET http://127.0.0.1:3456/tasks`
+> (filter `project === "postit"` in jq); there is no `/priorities` route.
 
 ## Resume prompt for a fresh AI agent
 
@@ -24,7 +26,7 @@ Code, Codex, Cursor, Droid), paste this prompt to it as your first message:
 > 2. Skim `README.md` for product context (what postit *is*).
 > 3. Follow the section "Priority Forge install + task reconstruction (for a new machine)" near the bottom of `docs/CURRENT_STATUS.md` to install Priority Forge, wire it to me, and restart me so the MCP tools load.
 > 4. Run the one-shot seed script: `bash scripts/seed-postit-tasks.sh`. It creates the three postit-tagged tasks this doc references and then **self-deletes**. Commit the deletion: `git add scripts/seed-postit-tasks.sh && git commit -m 'Remove one-shot seed script after first-time setup'`.
-> 5. Confirm the seed worked: `curl http://127.0.0.1:3456/priorities` should return three postit-tagged tasks (one P1 in_progress umbrella, one P1 in_progress ingestion audit, one P2 environment-only).
+> 5. Confirm the seed worked: `curl -s http://127.0.0.1:3456/tasks` and count tasks with `"project":"postit"` (expect three: one P1 in_progress umbrella, one P1 in_progress ingestion audit, one P2 environment-only). Forge v4 has no `/priorities` HTTP route.
 > 6. Read `~/Desktop/github/priority-forge/AGENT_RULES.md` once. That is the task tracking protocol you should follow during the work (mark `in_progress` before starting, ask for reasoning when deprioritizing/deferring, etc.).
 > 7. The active spine of work is the P1 in_progress task "Audit and finish postit item ingestion path across auth, dedup, API routes, and background enrichment". Drive it to done per the "Practical interpretation of the queue" and "Current planned path" sections in `docs/CURRENT_STATUS.md` before opening new feature work.
 >
@@ -32,18 +34,17 @@ Code, Codex, Cursor, Droid), paste this prompt to it as your first message:
 
 ## Active queue items (Priority Forge, `postit` project)
 
-The live forge state (as of this note) narrows down to:
+Task **UUIDs are local** to each machine — after `scripts/seed-postit-tasks.sh`
+they appear in `GET http://127.0.0.1:3456/tasks` with `project: "postit"`. The
+intended queue shape is:
 
-1. `79627545-3027-4790-9da0-6b44e9f53a9d` — **P1, in_progress**
-   `Build postit v1 — fork sharedboard, link-only PWA with merge-attribute
-   dedup, fixed taxonomy, asymmetric feed` (umbrella task)
-2. `4e74595f-13bd-4700-9725-aaa7d9b0f88f` — **P1, in_progress**
-   `Audit and finish postit item ingestion path across auth, dedup, API routes,
-   and background enrichment`
-3. `1de27ddc-0685-419f-a85e-0bfa8f0042c9` — **P2, not_started**
-   `Verify Codex sandbox/userns fix after AppArmor sysctl override`
-   (environment task; only tagged to `postit` because it was opened during a
-   postit working session — does not block product work)
+1. **P1, in_progress** — umbrella: `Build postit v1 — fork sharedboard, link-only
+   PWA with merge-attribute dedup, fixed taxonomy, asymmetric feed`
+2. **P1, in_progress** — `Audit and finish postit item ingestion path across auth,
+   dedup, API routes, and background enrichment` (drive to **complete** in Forge
+   once you have verified behavior in your environment)
+3. **P2, not_started** — `Verify Codex sandbox/userns fix after AppArmor sysctl
+   override` (environment-only; does not block product work)
 
 Already closed in the forge (do **not** treat as active anymore, even though an
 earlier version of this note listed it):
@@ -79,9 +80,10 @@ Confirmed implemented surfaces in the codebase:
   - `src/app/api/items/route.ts`
   - `src/lib/items/post.ts`
   - `src/lib/items/dedup.ts`
-  - `src/lib/canonical/extract.ts`
-  - `src/lib/canonical/normalize-url.ts`
+  - `src/lib/canonical/extract.ts` (incl. native `spotify:…` URIs, `music.apple.com`)
+  - `src/lib/canonical/normalize-url.ts` (`stableIngestCanonicalUrl` for Spotify/YouTube)
   - `src/lib/jobs/run-item-categorization.ts`
+  - `src/lib/search/hybrid-search.ts` (`mine` shows poster’s `pending` / `failed` items)
 - search / embeddings
   - `src/lib/search/embed-openai.ts`
   - `src/lib/search/build-embedding-document.ts`
@@ -148,53 +150,37 @@ first run:
 
 ## What is still not settled
 
-The main gap is no longer missing architectural pieces. It is **confidence and
-completeness around the ingest path** — i.e. forge task `4e74595f…`.
+The **ingest path is implemented and hardened in code** (dedup layers 1–2,
+merge-attribute posters, `POST` 200/202, in-process categorization + layer-3
+embedding merge, **mine**-only visibility for `pending` / `failed`). Remaining
+work is mostly **your-environment verification** (real Cognito, real OpenAI,
+concurrency under load) and product polish outside this spine.
 
-Open questions that still need explicit verification or hardening:
+Still worth tracking:
 
 - auth flow correctness across dev bootstrap, invite redemption, and
-  existing-user re-entry
-- canonical URL normalization coverage for the supported link types
-  (YouTube video IDs, Spotify URIs, Apple Podcasts episode IDs, generic URLs)
-- dedup semantics under concurrent submissions and repeated poster attribution
-  (the "merge-attribute" guarantee — you're appended to `item_posters`, not
-  given a new card)
-- end-to-end behavior of `POST /api/items`:
-  - response codes
-  - new item vs dedup hit behavior
-  - background categorization kickoff
-  - resulting feed visibility in `inbound` / `mine` / `archive`
-- whether all documented scripts actually exist and match the README
-- whether the current UI surfaces reflect the intended product state or just
-  partial ported scaffolding
-- `schema.sql` idempotency (see gotcha above) — consider adding `IF NOT
-  EXISTS` or a migration file split
+  existing-user re-entry (manual / staging verification)
+- `schema.sql` idempotency (see gotcha above) — consider `IF NOT EXISTS` or
+  migration split
+- README vs scripts parity and UI polish (admin, PWA deploy) as separate tasks
 
 ## Practical interpretation of the queue
 
-- `79627545…` (umbrella): keep the broader v1 vision in view, but do not let
-  the umbrella hide the fact that the next real work is verification and
-  hardening, not greenfield building.
-- `4e74595f…` (ingest audit): **this is the active spine of work.** Drive it
-  to done before spinning up new feature work.
-- `1de27ddc…` (Codex userns verify): environment-only, unblock later.
+- Umbrella (P1): keep the broader v1 vision in view; next product tranche is
+  admin polish, PWA + deploy, and runtime verification — not greenfield ingest.
+- Ingest audit (P1): **code side addressed in-repo (2026-04-19).** Mark the
+  matching Forge task **complete** after you smoke-test `POST /api/items` and
+  feeds in your dev DB.
+- Codex userns (P2): environment-only, unblock later.
 
 ## Current planned path
 
 1. Keep this document and the README aligned with the actual implementation.
-2. Audit the ingestion path end to end (= forge task `4e74595f…`):
-   - auth
-   - invite gate
-   - canonical URL handling
-   - dedup
-   - item insert / poster attribution
-   - background categorization
-   - feed refresh behavior
-3. After the ingestion path is confirmed, update the queue/doc wording again so
-   the next tranche reflects the real remaining product work rather than stale
-   phase names (eventual successor to the retired `POSTIT-P5` and
-   `POSTIT-P6` slots: admin console polish, PWA + Amplify deploy).
+2. ~~Audit the ingestion path end to end~~ **Done in code** — see verification
+   note at top; close the Forge ingestion task after local smoke tests.
+3. Next tranche: admin console polish, PWA + Amplify deploy, staging auth checks,
+   and README/script parity — described without reviving stale `POSTIT-P5` /
+   `POSTIT-P6` phase names unless you recreate those tasks in Forge.
 
 ## Where to resume (after the most recent local-dev session)
 
@@ -293,8 +279,8 @@ was overwritten with unrelated content and is not recoverable). This
 
 After seeding:
 
-- `curl http://127.0.0.1:3456/priorities` (or the dashboard at `:5173`)
-  should show three postit-tagged tasks.
+- `curl -s http://127.0.0.1:3456/tasks` (or the dashboard at `:5173`) should
+  include three `postit`-project tasks.
 - Your AI agent's first action on a new conversation will be
   `get_top_priority`, which will surface the active P1 in_progress task and
   let you resume cleanly from this document.

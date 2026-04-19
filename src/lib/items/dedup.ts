@@ -1,6 +1,6 @@
 import pool from "@/lib/db";
 import { extractCanonical, type ItemKind } from "@/lib/canonical/extract";
-import { normalizeUrl, urlHash } from "@/lib/canonical/normalize-url";
+import { stableIngestCanonicalUrl, urlHash } from "@/lib/canonical/normalize-url";
 
 /**
  * Postit's 3-layer dedup:
@@ -25,7 +25,7 @@ export type DedupOutcome =
 
 export async function dedupLookup(inputUrl: string): Promise<DedupOutcome> {
   const { kind, canonicalId } = extractCanonical(inputUrl);
-  const canonicalUrl = normalizeUrl(inputUrl);
+  const canonicalUrl = stableIngestCanonicalUrl(inputUrl, kind, canonicalId);
   const hash = urlHash(canonicalUrl);
 
   if (canonicalId) {

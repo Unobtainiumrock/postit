@@ -33,7 +33,7 @@ export class InvalidUrlError extends Error {
 
 export async function postItem(input: PostItemInput): Promise<PostItemResult> {
   const { url, note, userId } = input;
-  if (!isLikelyHttpUrl(url)) throw new InvalidUrlError();
+  if (!isLikelyItemUrl(url)) throw new InvalidUrlError();
 
   const sanitizedNote = sanitizeNote(note);
   const dedup = await dedupLookup(url);
@@ -83,6 +83,13 @@ async function upsertPoster(
      ON CONFLICT (item_id, user_id) DO UPDATE SET note = EXCLUDED.note`,
     [itemId, userId, note]
   );
+}
+
+/** Accepts https links and native `spotify:…` URIs handled by `extractCanonical`. */
+function isLikelyItemUrl(raw: string): boolean {
+  const t = raw.trim();
+  if (/^spotify:(episode|track|show|album|playlist):[A-Za-z0-9]+$/i.test(t)) return true;
+  return isLikelyHttpUrl(t);
 }
 
 function isLikelyHttpUrl(raw: string): boolean {

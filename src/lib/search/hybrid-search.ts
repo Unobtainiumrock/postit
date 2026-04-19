@@ -34,6 +34,21 @@ function rrfMerge(lists: string[][]): string[] {
     .map(([id]) => id);
 }
 
+/**
+ * Feed visibility by processing state. Global modes only show `ready` so inbound
+ * and search never surface half-processed rows. `mine` also lists the viewer's
+ * `pending` / `failed` posts so a 202 submit is visible before enrichment finishes.
+ */
+function feedStatusWhere(mode: FeedMode): string {
+  if (mode === "mine") {
+    return `(i.status = 'ready' OR (
+      i.status IN ('pending', 'failed')
+      AND EXISTS (SELECT 1 FROM item_posters ip_mine WHERE ip_mine.item_id = i.id AND ip_mine.user_id = $1)
+    ))`;
+  }
+  return `i.status = 'ready'`;
+}
+
 /** SQL fragment. Always references $1 as the viewer's user_id. */
 function modeClause(mode: FeedMode): string {
   switch (mode) {
@@ -131,7 +146,7 @@ export async function searchItemsHybrid(params: SearchItemsParams): Promise<unkn
   }
 
   const commonWhere = `
-    i.status = 'ready' AND i.merged_into IS NULL
+    ${feedStatusWhere(mode)} AND i.merged_into IS NULL
     ${modeClause(mode)}
     ${extraFilters.join("\n")}
   `;
@@ -247,7 +262,7 @@ export async function feedItems(params: FeedItemsParams): Promise<unknown[]> {
 
   const queryParams: (string | number | null)[] = [userId];
   let idx = 2;
-  let where = `WHERE i.status = 'ready' AND i.merged_into IS NULL ${modeClause(mode)}`;
+  let where = `WHERE ${feedStatusWhere(mode)} AND i.merged_into IS NULL ${modeClause(mode)}`;
 
   if (categorySlug) {
     queryParams.push(categorySlug);

@@ -45,7 +45,8 @@ export async function runItemCategorization(
 ): Promise<RunItemCategorizationResult> {
   const missingKey = openAINotConfiguredMessage();
   if (missingKey) {
-    await markFailed(itemId);
+    // Leave row in `pending` so configuring OPENAI_API_KEY later allows a retry
+    // (e.g. admin script or a future "re-run enrichment" action).
     return {
       ok: false,
       status: 503,

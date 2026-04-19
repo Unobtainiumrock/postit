@@ -14,6 +14,7 @@
     "db:reset": "docker exec -i postgres_postit psql -U postgres -c 'DROP DATABASE IF EXISTS postit;' && npm run db:setup",
     "taxonomy:seed": "DATABASE_URL=postgresql://postgres:password@localhost:5433/postit tsx scripts/seed-taxonomy.ts",
     "items:backfill-embeddings": "DATABASE_URL=postgresql://postgres:password@localhost:5433/postit tsx scripts/backfill-embeddings.ts",
+    "items:reprocess-pending": "DATABASE_URL=postgresql://postgres:password@localhost:5433/postit tsx scripts/reprocess-pending-items.ts",
     "demo:seed": "DATABASE_URL=postgresql://postgres:password@localhost:5433/postit tsx scripts/seed-demo-items.ts",
     "bootstrap:local": "bash scripts/local-dev-bootstrap.sh"
   },

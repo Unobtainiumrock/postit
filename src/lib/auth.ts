@@ -188,8 +188,16 @@ const devProvider = Credentials({
   },
   async authorize(credentials) {
     const email = (credentials?.email as string | undefined)?.trim();
-    const inviteToken =
+    let inviteToken =
       (credentials?.inviteToken as string | undefined)?.trim() || null;
+    if (!inviteToken) {
+      try {
+        const store = await cookies();
+        inviteToken = store.get(INVITE_COOKIE)?.value?.trim() || null;
+      } catch {
+        /* cookies() unavailable in some contexts */
+      }
+    }
     if (!email) return null;
 
     try {

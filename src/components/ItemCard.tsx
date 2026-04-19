@@ -27,6 +27,8 @@ export default function ItemCard({
   const myPoster = item.posters.find((p) => p.note && item.posted_by_me);
   const myNote = myPoster?.note || null;
   const posterLabel = item.posters.map((p) => `@${p.handle}`).join(", ");
+  const fallbackTitle = !item.title ? urlDisplay(item.canonical_url) : null;
+  const isProcessing = item.status === "pending";
 
   return (
     <LiquidGlass>
@@ -56,9 +58,21 @@ export default function ItemCard({
                 <span>{formatDuration(item.duration_seconds)}</span>
               </>
             )}
+            {isProcessing && (
+              <>
+                <span>·</span>
+                <span className="text-amber-200/80">processing…</span>
+              </>
+            )}
           </div>
-          {item.title && (
+          {item.title ? (
             <h3 className="font-medium leading-snug">{item.title}</h3>
+          ) : (
+            fallbackTitle && (
+              <h3 className="font-medium leading-snug break-all text-white/90">
+                {fallbackTitle}
+              </h3>
+            )
           )}
           {item.description && (
             <p className="text-sm text-white/70 line-clamp-3">
@@ -116,4 +130,20 @@ function formatDuration(s: number): string {
   const sec = total % 60;
   if (h > 0) return `${h}h ${m}m`;
   return `${m}:${sec.toString().padStart(2, "0")}`;
+}
+
+/**
+ * Fallback when an item hasn't been enriched yet (no title/description/thumbnail).
+ * Shows `host/first-path-segment` so pending cards are visually distinguishable
+ * instead of all collapsing to "shared by @you" with only a note.
+ */
+function urlDisplay(raw: string): string {
+  try {
+    const u = new URL(raw);
+    const host = u.hostname.replace(/^www\./, "");
+    const path = u.pathname === "/" ? "" : u.pathname;
+    return host + path;
+  } catch {
+    return raw;
+  }
 }
